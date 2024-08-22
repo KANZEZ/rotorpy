@@ -11,11 +11,12 @@ class TrajTemplate(object):
     The update() method is called at each iteration of the simulator. The only input to update is time t. The output of update()
     should be the desired flat outputs in a dictionary, as specified below. 
     """
-    def __init__(self):
+    def __init__(self, traj):
         """
         This is the constructor for the Trajectory object. A fresh trajectory
         object will be constructed before each mission.
         """
+        self.traj = traj
 
     def update(self, t):
         """
@@ -33,9 +34,9 @@ class TrajTemplate(object):
                 yaw,      yaw angle, rad
                 yaw_dot,  yaw rate, rad/s
         """
-        x    = np.zeros((3,))
-        x_dot = np.zeros((3,))
-        x_ddot = np.zeros((3,))
+        x    = self.traj.evaluate_p(t)
+        x_dot = self.traj.evaluate_v(t)
+        x_ddot = self.traj.evaluate_a(t)
         x_dddot = np.zeros((3,))
         x_ddddot = np.zeros((3,))
         yaw    = 0
