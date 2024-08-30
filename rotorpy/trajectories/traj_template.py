@@ -36,7 +36,7 @@ class TrajTemplate(object):
         """
         x    = self.traj.evaluate_p(t)
         x_dot = self.traj.evaluate_v(t)
-        x_ddot = self.traj.evaluate_a(t)
+        x_ddot = np.zeros((3,)) #self.traj.evaluate_a(t)  # should be constant acceleration
         x_dddot = np.zeros((3,))
         x_ddddot = np.zeros((3,))
         yaw    = 0
