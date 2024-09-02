@@ -168,7 +168,11 @@ class Environment():
                 fname = fname + ".csv"
             path = os.path.join(os.path.dirname(__file__),'data_out',fname)
             dataframe = unpack_sim_data(self.result)
-            dataframe.to_csv(path)
+            if os.path.exists(path):
+                dataframe.to_csv(path, mode='a', header=False)
+            else:
+                dataframe.to_csv(path, mode='w', header=True)
+
 
 
 if __name__=="__main__":

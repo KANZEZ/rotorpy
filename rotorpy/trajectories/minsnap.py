@@ -1,6 +1,8 @@
 """
 Imports
 """
+from tabnanny import verbose
+
 import numpy as np
 import cvxopt
 from scipy.linalg import block_diag
@@ -29,7 +31,7 @@ def cvxopt_solve_qp(P, q, G=None, h=None, A=None, b=None):
         args.extend([cvxopt.matrix(G), cvxopt.matrix(h)])
     if A is not None:
         args.extend([cvxopt.matrix(A), cvxopt.matrix(b)])
-    sol = cvxopt.solvers.qp(*args)
+    sol = cvxopt.solvers.qp(*args, options={'show_progress': False})
     if 'optimal' not in sol['status']:
         return None
     return np.array(sol['x']).reshape((P.shape[1],))
@@ -192,6 +194,7 @@ class MinSnap(object):
         self.points = points[seg_mask,:]
 
         self.null = False
+        self.if_success = True
 
         m = self.points.shape[0]-1  # Get the number of segments
 
@@ -242,6 +245,11 @@ class MinSnap(object):
             c_opt_y = cvxopt_solve_qp(P_pos, q=q_pos, G=Gy, h=hy, A=Ay, b=by)
             c_opt_z = cvxopt_solve_qp(P_pos, q=q_pos, G=Gz, h=hz, A=Az, b=bz)
             c_opt_yaw = cvxopt_solve_qp(P_yaw, q=q_yaw, G=Gyaw, h=hyaw, A=Ayaw, b=byaw)
+
+            if c_opt_yaw is None or c_opt_x is None or c_opt_y is None or c_opt_z is None:
+                print("Optimization failed.")
+                self.if_success = False
+                return
 
             ################## Construct polynomials from c_opt
             self.x_poly = np.zeros((m, 3, (poly_degree+1)))
