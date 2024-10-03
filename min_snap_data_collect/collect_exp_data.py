@@ -31,13 +31,13 @@ class RandomMinSnapGen:
                                           margin=self.inflate)
 
         ### min snap trajectory settings
-        self.v_avg = 0.5
+        self.v_avg = 1.0
         self.v_start = [0, 0, 0]
         self.v_end = [0, 0, 0]
         self.last_pos = np.array([0.5, 1, 0.7])
         self.last_quat = [0 ,0, 0, 1]
-        self.v_max = 1.5 # max vel for each dimension
-        self.a_max = 1.5 # max acc for each dimension
+        self.v_max = 2.1 # max vel for each dimension
+        self.a_max = 2.1 # max acc for each dimension
 
         # range of random waypoints
         self.x_range = (0.01, 5)
@@ -45,6 +45,20 @@ class RandomMinSnapGen:
         self.z_range = (0.2, 2)
         self.yaw_range = (-1.5, 1.5)  # may cause problem when planning with yaw(KKT singular error) ?
         self.n_waypoints = 4 # number of waypoints in each trajectory(not include start point)
+
+        #controller and simulation settings
+        self.sim_instance = Environment(vehicle=Multirotor(quad_params),           # vehicle object, must be specified.
+                                   controller=SE3Control(quad_params),        # controller object, must be specified.
+                                   trajectory=None,         # trajectory object, must be specified.
+                                   wind_profile=NoWind(),               # OPTIONAL: wind profile object, if none is supplied it will choose no wind.
+                                   sim_rate     = 100,                        # OPTIONAL: The update frequency of the simulator in Hz. Default is 100 Hz.
+                                   imu          = None,                       # OPTIONAL: imu sensor object, if none is supplied it will choose a default IMU sensor.
+                                   mocap        = None,                       # OPTIONAL: mocap sensor object, if none is supplied it will choose a default mocap.
+                                   estimator    = None,                       # OPTIONAL: estimator object
+                                   world        = self.world,                 # OPTIONAL: the world, same name as the file in rotorpy/worlds/, default (None) is empty world
+                                   safety_margin= 0.25                        # OPTIONAL: defines the radius (in meters) of the sphere used for collision checking
+                                   )
+
 
     def generate_waypoints(self):
         x_values = np.random.uniform(self.x_range[0], self.x_range[1], (self.n_waypoints, 1))
@@ -56,7 +70,9 @@ class RandomMinSnapGen:
         #append the current position to the waypoints
         waypoints = np.vstack((self.last_pos, waypoints))
         yaw_angles = np.append(self.quat_to_yaw(self.last_quat), yaw_angles)
+        print("waypoints: \n")
         print(waypoints)
+        print("yaw angles: \n")
         print(yaw_angles)
         return waypoints, yaw_angles
 
@@ -117,25 +133,15 @@ class RandomMinSnapGen:
         when doing real-world exp, current pos and quat could be from vicon,
         here in simulation, we retrieve them from vehicle states
         """
-        sim_instance = Environment(vehicle=Multirotor(quad_params),           # vehicle object, must be specified.
-                                   controller=SE3Control(quad_params),        # controller object, must be specified.
-                                   trajectory=traj,         # trajectory object, must be specified.
-                                   wind_profile=NoWind(),               # OPTIONAL: wind profile object, if none is supplied it will choose no wind.
-                                   sim_rate     = 100,                        # OPTIONAL: The update frequency of the simulator in Hz. Default is 100 Hz.
-                                   imu          = None,                       # OPTIONAL: imu sensor object, if none is supplied it will choose a default IMU sensor.
-                                   mocap        = None,                       # OPTIONAL: mocap sensor object, if none is supplied it will choose a default mocap.
-                                   estimator    = None,                       # OPTIONAL: estimator object
-                                   world        = self.world,                 # OPTIONAL: the world, same name as the file in rotorpy/worlds/, default (None) is empty world
-                                   safety_margin= 0.25                        # OPTIONAL: defines the radius (in meters) of the sphere used for collision checking
-                                   )
 
+        self.sim_instance.trajectory = traj
         # Setting an initial state. This is optional, and the state representation depends on the vehicle used.
         # Generally, vehicle objects should have an "initial_state" attribute.
-        sim_instance.vehicle.initial_state = x0
+        self.sim_instance.vehicle.initial_state = x0
         # Executing the simulator as specified above is easy using the "run" method:
         # All the arguments are listed below with their descriptions.
         # You can save the animation (if animating) using the fname argument. Default is None which won't save it.
-        results = sim_instance.run(t_final      = traj.t_keyframes[-1],       # The maximum duration of the environment in seconds
+        results = self.sim_instance.run(t_final      = traj.t_keyframes[-1],       # The maximum duration of the environment in seconds
                                    use_mocap    = False,       # Boolean: determines if the controller should use the motion capture estimates.
                                    terminate    = None,       # Boolean: if this is true, the simulator will terminate when it reaches the last waypoint.
                                    plot            = True,     # Boolean: plots the vehicle states and commands
@@ -167,7 +173,11 @@ class RandomMinSnapGen:
         while iter_num < max_run_time:
 
             traj, x0 = self.return_traj()
-            print("[planner]: generated the trajectory ")
+            if traj is None or not traj.if_success: # planner failed
+                print("Trajectory is None, optimizing fail, regenerating...")
+                continue
+
+            print("[planner]: generated a trajectory ")
 
             if not self.is_safe_traj(traj):
                 print("traj not safe or not feasible, regenerating...")
@@ -189,7 +199,7 @@ class RandomMinSnapGen:
             else:
                 print("[controller]: goal not reached!")
 
-                # some errors happened, may let it hover or take off?
+                # some errors happened, may let it hover or take off
 
                 break
         print("finish")
