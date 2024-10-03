@@ -1,5 +1,5 @@
 # Random min snap traj generation with rotorpy
- * to run:
+ * To run the simulation:
  ```
  python3 collect_exp_data.py
  ```
